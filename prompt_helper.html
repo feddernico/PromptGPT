@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>PromptGPT - A tool to help you write prompts more efficiently</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background: #f9f9f9;
+    }
+
+    .container {
+      max-width: 90% !important;  /* Increased from Bootstrap's default max-width */
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      overflow: hidden;
+      padding: 40px;  /* Added more padding */
+    }
+
+    h1 {
+      font-weight: 700;
+      color: #333;
+    }
+
+    .btn-primary {
+      background-color: #007bff;
+      border: none;
+    }
+
+    #output, #userInput {
+      font-family: 'Courier New', Monaco, monospace;
+    }
+
+    #output {
+      padding: 20px;
+      background: #f2f2f2;
+      border-radius: 4px;
+      margin-top: 20px;
+    }
+  </style>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
+</head>
+<body>
+
+<div class="container mt-5">
+  <div class="row">
+    <div class="col-md-8 offset-md-2">
+      <h1>promptGPT</h1>
+      <p>A tool to help you write prompts efficiently</p>
+      <form>
+        <div class="mb-3">
+          <label for="subject" class="form-label">Subject:</label>
+          <select id="subject" class="form-select" onchange="updateValue()">
+            <option>Interpret Code</option>
+            <option>Generate Data</option>
+            <option>Data Science</option>
+            <option>Machine Learning</option>
+            <option>Other</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label for="userInput" class="form-label">Input:</label>
+          <textarea id="userInput" class="form-control" style="font-family: 'Courier New', Monaco, monospace; height: 200px;" placeholder="Enter your text here..."></textarea>
+        </div>
+
+        <button type="button" class="btn btn-success" onclick="onButtonClicked()"><i class="fas fa-desktop"></i> Generate Prompt</button>
+        <button type="button" class="btn btn-primary" onclick="saveTemplate()"><i class="fas fa-save"></i> Save Template</button>
+        <button type="button" class="btn btn-warning" onclick="loadTemplate()"><i class="fas fa-upload"></i> Load Template</button>
+      </form>
+      <br />
+      <h3>Generated Prompt:</h3>
+      <button type="button" class="btn btn-primary" onclick="copyToClipboard()" id="copyButton"><i class="fas fa-copy"></i> <span id="copyButtonText">Copy to Clipboard</span></button>
+      <div id="output"></div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal fade" id="loadTemplateModal" tabindex="-1" role="dialog" aria-labelledby="loadTemplateModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="loadTemplateModalLabel">Load Template</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <label for="templateDropdown">Select a template:</label>
+          <select id="templateDropdown">
+            <!-- Options will be populated here -->
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" onclick="applyTemplate()">Load</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function updateValue() {
+    const subject = document.getElementById("subject").value;
+    const promptMap = {
+      'Interpret Code': 'Act as a Data Scientist. Interpret the following code snippet:\n\nENTER CODE SNIPPET',
+      'Generate Data': 'Act as a fake data generator. I need a dataset with [NROWS] records and [NCOLS] columns: [COL1], [COL2], ...',
+      'Data Science': 'Discuss the following Data Science topic:\n\nENTER TOPIC',
+      'Machine Learning': 'Explain the following Machine Learning concept:\n\nENTER MACHINE LEARNING TOPIC',
+      'Other': 'ENTER PROMPT'
+    };
+    document.getElementById("userInput").value = promptMap[subject] || 'Enter your text here...';
+  }
+
+  function onButtonClicked() {
+    const subject = document.getElementById("subject").value;
+    const userInput = document.getElementById("userInput").value;
+    const generatedPrompt = userInput.replace(/\n/g, '<br />');
+    const prompt = `${generatedPrompt}`;
+    document.getElementById("output").innerHTML = prompt;
+  }
+
+  function saveTemplate() {
+    const templateName = prompt("Enter a name for this template:");
+    if (templateName === null) return;  // User clicked Cancel
+    
+    const currentSubject = document.getElementById("subject").value;
+    const currentTemplate = document.getElementById("userInput").value;
+    const savedTemplates = JSON.parse(localStorage.getItem(currentSubject) || '[]');
+    
+    const templateData = {
+      name: templateName,
+      content: currentTemplate
+    };
+    
+    savedTemplates.push(templateData);
+    localStorage.setItem(currentSubject, JSON.stringify(savedTemplates));
+  }
+
+  function loadTemplate() {
+    const currentSubject = document.getElementById("subject").value;
+    const savedTemplates = JSON.parse(localStorage.getItem(currentSubject) || '[]');
+    const templateDropdown = document.getElementById("templateDropdown");
+    
+    // Clear existing options
+    templateDropdown.innerHTML = "";
+
+    if (savedTemplates.length === 0) {
+      alert("No templates available for this topic.");
+      return;
+    }
+
+    // Populate dropdown
+    savedTemplates.forEach((template, index) => {
+      const option = document.createElement("option");
+      option.text = template.name;
+      option.value = index;
+      templateDropdown.add(option);
+    });
+
+    // Show modal
+    $('#loadTemplateModal').modal('show');
+  }
+
+  function applyTemplate() {
+    const currentSubject = document.getElementById("subject").value;
+    const savedTemplates = JSON.parse(localStorage.getItem(currentSubject) || '[]');
+    const selectedTemplateIndex = document.getElementById("templateDropdown").value;
+
+    if (selectedTemplateIndex !== null && savedTemplates[selectedTemplateIndex]) {
+      document.getElementById("userInput").value = savedTemplates[selectedTemplateIndex].content;
+    }
+    
+    $('#loadTemplateModal').modal('hide');
+  }
+
+  function copyToClipboard() {
+    // Create a temporary textarea element to hold the text
+    var tempText = document.createElement("textarea");
+    tempText.value = document.getElementById("output").innerText; // Get the text from the output div
+    document.body.appendChild(tempText);
+    tempText.select();
+    
+    // Copy the text to clipboard
+    document.execCommand('copy');
+    
+    // Remove the temporary textarea element
+    document.body.removeChild(tempText);
+    
+    // Optional: Show a "Copied!" message
+    document.getElementById("copyButtonText").innerText = "Copied!";
+
+    // Reset the button text after 3 seconds
+    setTimeout(function() {
+      document.getElementById("copyButtonText").innerText = "Copy to Clipboard";
+    }, 3000);
+  }
+
+  // Initialize the textarea with the correct value
+  window.onload = function() {
+    updateValue();
+  };
+</script>
+
+</body>
+</html>
