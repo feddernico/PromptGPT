@@ -55,13 +55,16 @@
       <form>
         <div class="mb-3">
           <label for="subject" class="form-label">Subject:</label>
-          <select id="subject" class="form-select" onchange="updateValue()">
-            <option>Interpret Code</option>
-            <option>Generate Data</option>
+          <select id="subject" class="form-control" onchange="updateValue(); updateSubtopics();">
+            <option>Software Engineering</option>
             <option>Data Science</option>
             <option>Machine Learning</option>
-            <option>Other</option>
           </select>
+
+          <label for="subtopic">Subtopic:</label>
+            <select id="subtopic" class="form-control">
+              <!-- dynamically generated -->
+            </select>
         </div>
 
         <div class="mb-3">
@@ -97,7 +100,7 @@
           </select>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
           <button type="button" class="btn btn-primary" onclick="applyTemplate()">Load</button>
         </div>
       </div>
@@ -106,17 +109,53 @@
 </div>
 
 <script>
+  const subjectMap = {
+    'Software Engineering': {
+      'Interpret Code': 'Interpret the following code snippet:\n\nENTER CODE SNIPPET'
+    },
+    'Data Science': {
+      'Generate Data': 'Act as a fake data generator. I need a dataset with [NROWS] records and [NCOLS] columns: [COL1], [COL2], ...',
+      'Train Classification Model': 'I want you to act as a Data Scientist and train create some code for me. I have a dataset [DESCRIBE DATASET]. Build a [MODEL TYPE] model that predicts [TARGET VARIABLE]',
+      'Hyperparameter Tuning': 'Act as a Data Scientist and tune the hyperparameters of the [MODEL TYPE] model. These are the best hyperparameters so far:\n\n[MODEL HYPERPARAMETERS]\n\nI am currently getting a [METRIC NAME] of [METRIC VALUE]. I want you to improve this metric.',
+      'Describe Topic': 'Discuss the following Data Science topic:\n\nENTER TOPIC'
+    },
+    'Machine Learning': {
+      'Explain Algorithm': 'Explain the following Machine Learning algorithm:\n\n[ENTER ALGORITHM]',
+      'Evaluate Model': 'Evaluate the following Machine Learning model:\n\n[ENTER MODEL METRICS]'
+    }
+  };
+
+  function updateSubtopics() {
+    const subject = document.getElementById("subject").value;
+    const subtopicDropdown = document.getElementById("subtopic");
+    const subtopics = subjectMap[subject] || {};
+
+    subtopicDropdown.innerHTML = '';
+
+    for (let subtopic in subtopics) {
+      const option = document.createElement("option");
+      option.text = subtopic;
+      option.value = subtopic;
+      subtopicDropdown.add(option);
+    }
+
+    updateValue();  // Update textarea when subtopics are loaded
+  }
+
   function updateValue() {
     const subject = document.getElementById("subject").value;
+    const subtopic = document.getElementById("subtopic").value;
+    
     const promptMap = {
-      'Interpret Code': 'Act as a Data Scientist. Interpret the following code snippet:\n\nENTER CODE SNIPPET',
-      'Generate Data': 'Act as a fake data generator. I need a dataset with [NROWS] records and [NCOLS] columns: [COL1], [COL2], ...',
-      'Data Science': 'Discuss the following Data Science topic:\n\nENTER TOPIC',
-      'Machine Learning': 'Explain the following Machine Learning concept:\n\nENTER MACHINE LEARNING TOPIC',
-      'Other': 'ENTER PROMPT'
+      'Interpret Code': 'Interpret the following code snippet:\n\nENTER CODE SNIPPET'
     };
-    document.getElementById("userInput").value = promptMap[subject] || 'Enter your text here...';
+
+    const selectedPrompt = subjectMap[subject] && subjectMap[subject][subtopic] ? subjectMap[subject][subtopic] : promptMap[subject];
+    document.getElementById("userInput").value = selectedPrompt || 'Enter your text here...';
   }
+
+  // Add this line to update textarea on subtopic change
+  document.getElementById("subtopic").addEventListener("change", updateValue);
 
   function onButtonClicked() {
     const subject = document.getElementById("subject").value;
@@ -126,13 +165,19 @@
     document.getElementById("output").innerHTML = prompt;
   }
 
+  function getLocalStorageKey() {
+    const subject = document.getElementById("subject").value;
+    const subtopic = document.getElementById("subtopic").value;
+    return `${subject}_${subtopic}`;
+  }
+
   function saveTemplate() {
     const templateName = prompt("Enter a name for this template:");
     if (templateName === null) return;  // User clicked Cancel
     
-    const currentSubject = document.getElementById("subject").value;
+    const key = getLocalStorageKey();
     const currentTemplate = document.getElementById("userInput").value;
-    const savedTemplates = JSON.parse(localStorage.getItem(currentSubject) || '[]');
+    const savedTemplates = JSON.parse(localStorage.getItem(key) || '[]');
     
     const templateData = {
       name: templateName,
@@ -140,12 +185,12 @@
     };
     
     savedTemplates.push(templateData);
-    localStorage.setItem(currentSubject, JSON.stringify(savedTemplates));
+    localStorage.setItem(key, JSON.stringify(savedTemplates));
   }
 
   function loadTemplate() {
-    const currentSubject = document.getElementById("subject").value;
-    const savedTemplates = JSON.parse(localStorage.getItem(currentSubject) || '[]');
+    const key = getLocalStorageKey();
+    const savedTemplates = JSON.parse(localStorage.getItem(key) || '[]');
     const templateDropdown = document.getElementById("templateDropdown");
     
     // Clear existing options
@@ -169,8 +214,8 @@
   }
 
   function applyTemplate() {
-    const currentSubject = document.getElementById("subject").value;
-    const savedTemplates = JSON.parse(localStorage.getItem(currentSubject) || '[]');
+    const key = getLocalStorageKey();
+    const savedTemplates = JSON.parse(localStorage.getItem(key) || '[]');
     const selectedTemplateIndex = document.getElementById("templateDropdown").value;
 
     if (selectedTemplateIndex !== null && savedTemplates[selectedTemplateIndex]) {
@@ -205,6 +250,7 @@
   // Initialize the textarea with the correct value
   window.onload = function() {
     updateValue();
+    updateSubtopics();
   };
 </script>
 
